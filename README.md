@@ -2,6 +2,10 @@
 
 > A $\LaTeX$ package to help drawing Linear Feedback Shift Registers (LFSRs) in TikZ.
 
+## Example
+
+See example.tex and example.pdf for some sample source code and results.
+
 ## Commands
 
 The package exposes the following macros:
