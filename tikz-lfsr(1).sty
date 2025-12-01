@@ -1,0 +1,169 @@
+\NeedsTeXFormat{LaTeX2e}[2021] % In order to use the new in-kernel xparse commands 
+\ProvidesPackage{tikz-lfsr}[package to make pretty LFSR diagrams in TikZ]
+
+\RequirePackage{tikz}
+\RequirePackage{xstring}
+\RequirePackage{pgfkeys}
+
+\def\ManyLFSRDebug{0}
+
+\newcommand{\LFSR@addletter}[2]{
+  \char\number\numexpr\expandafter`#1 + #2 - 1
+}
+
+\pgfkeys{
+    /lfsr/.is family, /lfsr,
+    default/.style =
+     {
+       base name = s,
+       zero subscript = 0,
+       x base = 0,
+       y base = 0,
+     },
+    base name/.estore in = \LfsrBaseName,
+    zero subscript/.estore in = \LfsrZeroSubscript,
+    x base/.estore in = \LfsrXBase,
+    y base/.estore in = \LfsrYBase,
+}
+
+\newcommand\LFSR[2][]{
+  % parse
+  \pgfkeys{/lfsr, default, #1}  
+  % Configure picture for bigger arrows
+  \begin{tikzpicture}[line width=1pt, =>stealth]
+    \LFSR@Draw[#1]{#2}
+    % Draw outgoing arrow
+    \pgfmathsetmacro{\yPlusHalf}{\LfsrYBase + 0.5}
+    \pgfmathsetmacro{\XMinHalf }{\LfsrXBase - 0.5}
+    
+    \draw[->] (\LfsrXBase, \yPlusHalf) -- (\XMinHalf, \yPlusHalf);
+  \end{tikzpicture}  
+}
+
+% example input \ManyLFSR[options here]{{101010}{1010}{10001}}
+\newcommand\ManyLFSR[2][]{
+  \pgfkeys{/lfsr, default, #1}
+  \StrChar{\LfsrBaseName}{1}[\ManyLFSRBaseChar]
+  % Configure picture for bigger arrows
+  \begin{tikzpicture}[line width=1pt, =>stealth]
+    \LFSR@DrawCircle{(-1, 0)}{1}
+    \draw [->] (-1.5, 0) -- (-2.5, 0);
+  
+    \pgfmathparse{dim(#2)}
+    \pgfmathsetmacro{\ManyLFSRLength}{\pgfmathresult}
+    \foreach \ManyLFSRInputString [count=\ManyLFSRIndex] in {#2} {
+        \def\ManyLFSRLetter{\LFSR@addletter{\ManyLFSRBaseChar}{\ManyLFSRIndex}}
+        \pgfmathsetmacro{\ManyLFSRHeight}{(\ManyLFSRIndex - (\ManyLFSRLength + 1) / 2) * -3 - 0.5}
+        \pgfmathsetmacro{\ManyLFSRLineBaseHeight}{\ManyLFSRHeight + 0.5}
+        \pgfmathsetmacro{\ManyLFSRRatio}{1-(\ManyLFSRIndex - 1)/(\ManyLFSRLength - 1)}
+        \pgfmathsetmacro{\ManyLFSRCircleX}{-abs(\ManyLFSRRatio - 0.5) * 2 + 1}
+        \pgfmathsetmacro{\ManyLFSRDrawX}{\ManyLFSRCircleX/2 - 1}
+        \pgfmathsetmacro{\ManyLFSRCircleY}{sin(sign(\ManyLFSRRatio - 0.5) * acos(\ManyLFSRCircleX))}
+        \pgfmathsetmacro{\ManyLFSRDrawY}{\ManyLFSRCircleY / 2}
+        
+        \LFSR@Draw[#1, y base = \ManyLFSRHeight, base name = \ManyLFSRLetter]{\ManyLFSRInputString}
+
+        \pgfmathtruncatemacro{\ManyLFSRIntY}{round(\ManyLFSRCircleY * 10)}
+        % temporary
+        \if \ManyLFSRIntY 0
+            \draw[->] (0, \ManyLFSRLineBaseHeight) -- (\ManyLFSRDrawX, \ManyLFSRDrawY);
+            \def\ManyLFSRMode{direct}
+        \else
+            \draw[->] (0, \ManyLFSRLineBaseHeight) -- (\ManyLFSRDrawX, \ManyLFSRLineBaseHeight) -- (\ManyLFSRDrawX, \ManyLFSRDrawY);
+            \def\ManyLFSRMode{indirect}
+        \fi
+        \if \ManyLFSRDebug 1
+            \node [align=left] at (-3, 
+            \ManyLFSRLineBaseHeight) {
+            Ratio: \ManyLFSRRatio, \\
+            X: \ManyLFSRCircleX, \\
+            Y: \ManyLFSRCircleY, \\
+            Mode: \ManyLFSRMode, \\
+            Global name: \ManyLFSRBaseChar, \\
+            Name: \ManyLFSRLetter
+            };
+        \fi
+    }
+% \DrawLFSR[#1, y base = 0]{00101}
+% \DrawLFSR[#1, y base = 3]{1101}
+  \end{tikzpicture}  
+}
+
+\newcommand\LFSR@DrawCircle[2]{
+% Draw circle with +
+    \node[
+        draw,
+        circle,
+        fill=white,
+        draw=black,
+        minimum size=#2cm,
+        inner sep=0,
+    ] at #1 {\Large\bf +};
+}
+
+\newcommand\LFSR@Draw[2][]{
+    \pgfkeys{/lfsr, default, #1}
+    \def\inputString{#2}
+    
+
+    \StrLen{\inputString}[\n]
+    \pgfmathsetmacro{\XPlusHalf}{\LfsrXBase + 0.5}
+    \pgfmathsetmacro{\XPlusN}{\LfsrXBase + \n}
+    \pgfmathsetmacro{\XPlusNOne}{\LfsrXBase + \n + 1}
+    
+    \pgfmathsetmacro{\yPlusHalf  }{\LfsrYBase + 0.5}
+    \pgfmathsetmacro{\yPlusOne   }{\LfsrYBase + 1}
+    \pgfmathsetmacro{\yPlusOneSix}{\LfsrYBase + 1.6}
+    \pgfmathsetmacro{\yPlusTwo   }{\LfsrYBase + 2}
+
+    
+    % Require that the first character is 1
+    \StrChar{\inputString}{1}[\firstChar]
+    \IfStrEq{\firstChar}{0}{\PackageWarning{tikz-LFSR}{The most significant bit is not set, but will be treated as it.}}{}
+
+    % Draw loop from s_0 to s_{n-1}
+    \pgfmathtruncatemacro{\x}{\n + 1}
+    \draw[->] (\XPlusHalf, \yPlusOne) -- (\XPlusHalf, \yPlusTwo) -- (\XPlusNOne, \yPlusTwo) -- (\XPlusNOne, \yPlusHalf) -- (\XPlusN, \yPlusHalf);
+    
+    \foreach \i in {1,...,\n} {
+        \StrChar{\inputString}{\i}[\ch]
+        \IfStrEq{\ch}{1}{
+            % Don't draw the plus above the leftmost cell
+            \ifnum \i > 1
+            {
+                \pgfmathsetmacro{\xMidPoint  }{\LfsrXBase + \i - 0.5}
+                \pgfmathsetmacro{\xRightEdge }{\LfsrXBase +\i - 0.9}
+                \pgfmathsetmacro{\xLeftEdge  }{\LfsrXBase +\i - 1.1}
+                % Draw upwards arrow
+                \draw[->] (\xMidPoint, \yPlusOne) -- (\xMidPoint, \yPlusOneSix);
+                \LFSR@DrawCircle{(\xMidPoint, \yPlusTwo)}{0.8}
+                % Draw arrowhead pointing into circle from left side
+                \draw[->] (\xLeftEdge, \yPlusTwo) -- (\xRightEdge, \yPlusTwo); 
+            } \fi
+        }{  % if \ch != 1
+            % Check whether digit is at least 0
+            \IfStrEq{\ch}{0}{  % No problem
+            }{
+            % Problem
+            \PackageError{tikz-LFSR}{Unknown digit found. '\ch'}{Please only use 0 and 1.}
+            }
+        }
+        
+        \pgfmathsetmacro{\x}{\LfsrXBase + \i-0.5}
+        \def\subscript{{err}}
+        \ifnum \i = 1
+            \def\subscript{\LfsrZeroSubscript}
+        \else
+            \pgfmathtruncatemacro{\subscript}{\i-1}
+        \fi
+        % Draw box with s_{i-1}
+        \node[
+        draw,
+        rectangle,
+        draw=black,
+        minimum size=1cm,
+        inner sep=0,
+        ] at (\x, \yPlusHalf) {\Large$\LfsrBaseName_\subscript$};
+    }
+  % \end{tikzpicture}
+}
