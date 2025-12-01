@@ -1,0 +1,20 @@
+\documentclass{article}
+\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage{tikz-lfsr}
+
+\begin{document}
+\begin{center}
+    \ManyLFSR{100010101,11000010}
+    
+    \vspace{6em}
+    
+    \ManyLFSR[%
+        zero subscript=0,
+        base name=u%
+    ]{100010101,11000010,1001}
+    
+    \vspace{6em}
+    
+    \LFSR{10010}
+\end{center}
+\begin{document}
