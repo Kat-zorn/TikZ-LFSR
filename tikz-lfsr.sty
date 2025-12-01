@@ -1,3 +1,7 @@
+% TikZ-LFSR © 2025 by Luka Bijma is licensed under CC BY 4.0. A copy of this license can be found at https://creativecommons.org/licenses/by/4.0/.
+% View this code on Github at https://github.com/Kat-zorn/TikZ-LFSR/.
+% The author is not affiliated with the TikZ project, whose code is licensed under the GPLv2.
+
 \NeedsTeXFormat{LaTeX2e}[2021] % In order to use the new in-kernel xparse commands 
 \ProvidesPackage{tikz-lfsr}[package to make pretty LFSR diagrams in TikZ]
 
@@ -5,12 +9,29 @@
 \RequirePackage{xstring}
 \RequirePackage{pgfkeys}
 
+% Users may redefine this macro to 1 to make the package render additional debugging information when using the \ManyLFSR command.
 \def\ManyLFSRDebug{0}
 
+% Shift the character #1 by #2 - 1 places.
 \newcommand{\LFSR@addletter}[2]{
   \char\number\numexpr\expandafter`#1 + #2 - 1
 }
 
+% Define the optional arguments for the LFSR and ManyLFSR commands.
+% base name: Default `s'
+%         The name of the values in the cells of the top index.
+%         This will be incremented by one for each additional LFSR. 
+%         This must be a single character when ManyLFSR is used.
+%         With LFSR a multi-character string is allowed.
+% zero subscript: Default 0
+%         What to subscipt the name by for the 0-index.
+%         A popular option is `j'.
+% x base: Default 0
+%         The x-position in the picture to draw the leftmost edge of the LFSR at.
+%         Only has an effect on the internal \LFSR@Draw command.
+% y base: Default 0
+%         The y-position in the picture to draw the bottom of the LFSR at.
+%         Only has an effect on the internal \LFSR@Draw command.
 \pgfkeys{
     /lfsr/.is family, /lfsr,
     default/.style =
@@ -26,6 +47,9 @@
     y base/.estore in = \LfsrYBase,
 }
 
+% Draw a single LFSR. Takes optional arguments as specified above.
+% The manditory argument is binary number, starting with 1.
+% Here, a one marks that a cell contributes to the final sum.
 \newcommand\LFSR[2][]{
   % parse
   \pgfkeys{/lfsr, default, #1}  
@@ -40,18 +64,24 @@
   \end{tikzpicture}  
 }
 
-% example input \ManyLFSR[options here]{{101010}{1010}{10001}}
+% Similar to the LFSR command, but its mandatory argument
+% is a comma-separated list of such binary numbers.
 \newcommand\ManyLFSR[2][]{
+  % Parse arguments
   \pgfkeys{/lfsr, default, #1}
+  % Only the first character of the base name will be used when drawing several LFSRs.
   \StrChar{\LfsrBaseName}{1}[\ManyLFSRBaseChar]
   % Configure picture for bigger arrows
   \begin{tikzpicture}[line width=1pt, =>stealth]
+    % Draw the combining circle and outward arrow.
     \LFSR@DrawCircle{(-1, 0)}{1}
     \draw [->] (-1.5, 0) -- (-2.5, 0);
-  
+    % Compute how many LFSRs have been given.
     \pgfmathparse{dim(#2)}
     \pgfmathsetmacro{\ManyLFSRLength}{\pgfmathresult}
+    % Draw each LFSR
     \foreach \ManyLFSRInputString [count=\ManyLFSRIndex] in {#2} {
+        % Compute the name and position of this LFSR.
         \def\ManyLFSRLetter{\LFSR@addletter{\ManyLFSRBaseChar}{\ManyLFSRIndex}}
         \pgfmathsetmacro{\ManyLFSRHeight}{(\ManyLFSRIndex - (\ManyLFSRLength + 1) / 2) * -3 - 0.5}
         \pgfmathsetmacro{\ManyLFSRLineBaseHeight}{\ManyLFSRHeight + 0.5}
@@ -60,18 +90,22 @@
         \pgfmathsetmacro{\ManyLFSRDrawX}{\ManyLFSRCircleX/2 - 1}
         \pgfmathsetmacro{\ManyLFSRCircleY}{sin(sign(\ManyLFSRRatio - 0.5) * acos(\ManyLFSRCircleX))}
         \pgfmathsetmacro{\ManyLFSRDrawY}{\ManyLFSRCircleY / 2}
-        
+        % Draw the LFSR at that position.
         \LFSR@Draw[#1, y base = \ManyLFSRHeight, base name = \ManyLFSRLetter]{\ManyLFSRInputString}
 
+        % Draw the arrow between the LFSR to the final sum symbol.
         \pgfmathtruncatemacro{\ManyLFSRIntY}{round(\ManyLFSRCircleY * 10)}
-        % temporary
         \if \ManyLFSRIntY 0
+            % The arrow is almost flat. Don't bother giving it an angle.
+            % This prevents misaligned arrowheads.
             \draw[->] (0, \ManyLFSRLineBaseHeight) -- (\ManyLFSRDrawX, \ManyLFSRDrawY);
             \def\ManyLFSRMode{direct}
         \else
+            % Draw the arrow with an angle.
             \draw[->] (0, \ManyLFSRLineBaseHeight) -- (\ManyLFSRDrawX, \ManyLFSRLineBaseHeight) -- (\ManyLFSRDrawX, \ManyLFSRDrawY);
             \def\ManyLFSRMode{indirect}
         \fi
+        % Print the extra debug text left of the diagram, if debug mode is enabled.
         \if \ManyLFSRDebug 1
             \node [align=left] at (-3, 
             \ManyLFSRLineBaseHeight) {
@@ -84,13 +118,11 @@
             };
         \fi
     }
-% \DrawLFSR[#1, y base = 0]{00101}
-% \DrawLFSR[#1, y base = 3]{1101}
   \end{tikzpicture}  
 }
 
+% Draw a circle at #1 of diameter #2, with a + sign in the center.
 \newcommand\LFSR@DrawCircle[2]{
-% Draw circle with +
     \node[
         draw,
         circle,
@@ -101,16 +133,20 @@
     ] at #1 {\Large\bf +};
 }
 
+% Draw an LFSR into an existing tikzpicture.
+% Same syntax as the LFSR command.
 \newcommand\LFSR@Draw[2][]{
+    % Parse arguments
     \pgfkeys{/lfsr, default, #1}
     \def\inputString{#2}
     
-
+    % Compute the positions of several points
     \StrLen{\inputString}[\n]
+    %% Used for the inital arrow
     \pgfmathsetmacro{\XPlusHalf}{\LfsrXBase + 0.5}
     \pgfmathsetmacro{\XPlusN}{\LfsrXBase + \n}
     \pgfmathsetmacro{\XPlusNOne}{\LfsrXBase + \n + 1}
-    
+    %% Used everywhere
     \pgfmathsetmacro{\yPlusHalf  }{\LfsrYBase + 0.5}
     \pgfmathsetmacro{\yPlusOne   }{\LfsrYBase + 1}
     \pgfmathsetmacro{\yPlusOneSix}{\LfsrYBase + 1.6}
@@ -124,18 +160,21 @@
     % Draw loop from s_0 to s_{n-1}
     \pgfmathtruncatemacro{\x}{\n + 1}
     \draw[->] (\XPlusHalf, \yPlusOne) -- (\XPlusHalf, \yPlusTwo) -- (\XPlusNOne, \yPlusTwo) -- (\XPlusNOne, \yPlusHalf) -- (\XPlusN, \yPlusHalf);
-    
+
+    % Draw each cell, circle, and arrow
     \foreach \i in {1,...,\n} {
+        % Read the character
         \StrChar{\inputString}{\i}[\ch]
         \IfStrEq{\ch}{1}{
-            % Don't draw the plus above the leftmost cell
             \ifnum \i > 1
             {
+                % Draw the circle and arrow, but not above the first cell.
                 \pgfmathsetmacro{\xMidPoint  }{\LfsrXBase + \i - 0.5}
                 \pgfmathsetmacro{\xRightEdge }{\LfsrXBase +\i - 0.9}
                 \pgfmathsetmacro{\xLeftEdge  }{\LfsrXBase +\i - 1.1}
                 % Draw upwards arrow
                 \draw[->] (\xMidPoint, \yPlusOne) -- (\xMidPoint, \yPlusOneSix);
+                % Draw circle
                 \LFSR@DrawCircle{(\xMidPoint, \yPlusTwo)}{0.8}
                 % Draw arrowhead pointing into circle from left side
                 \draw[->] (\xLeftEdge, \yPlusTwo) -- (\xRightEdge, \yPlusTwo); 
@@ -148,7 +187,7 @@
             \PackageError{tikz-LFSR}{Unknown digit found. '\ch'}{Please only use 0 and 1.}
             }
         }
-        
+        % Prepare for drawing the box
         \pgfmathsetmacro{\x}{\LfsrXBase + \i-0.5}
         \def\subscript{{err}}
         \ifnum \i = 1
@@ -156,7 +195,7 @@
         \else
             \pgfmathtruncatemacro{\subscript}{\i-1}
         \fi
-        % Draw box with s_{i-1}
+        % Draw the box with the computed text and position.
         \node[
         draw,
         rectangle,
